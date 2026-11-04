@@ -1,0 +1,34 @@
+# Footage, crops, datasets and flight logs stay on the author's machine (bystander privacy)
+logs/*
+!logs/.gitkeep
+!logs/example_flight.csv
+data/
+footage/
+crops/
+*.mp4
+*.MP4
+*.mov
+*.bin
+*.BIN
+*.tlog
+*.engine
+*.onnx
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Private planning notes, never committed
+private/

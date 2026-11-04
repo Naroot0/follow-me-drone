@@ -1,0 +1,50 @@
+# Every tunable number in the system lives here. Every rule in control/ can be
+# stated as one if-then sentence that references only these names.
+# Units: meters, seconds, meters per second, degrees.
+
+station:
+  distance_m: 2.5          # criterion 2
+  distance_band_m: 0.5     # plus or minus
+  distance_floor_m: 1.5    # hard floor, controller never commands closer
+  angle_deg: 180           # 180 = directly behind the person; orbit sweeps this
+  height_above_m: 1.5      # above the person's head
+
+acquisition:
+  timeout_s: 5             # criterion 1
+  enroll_range_min_m: 2
+  enroll_range_max_m: 4
+
+reacquisition:
+  occlusion_max_s: 5       # criterion 3; longer than this declares a loss
+  reid_similarity_threshold: 0.70   # cosine similarity, logged on every match
+
+loss:
+  hover_then_land_after_s: 15
+
+obstacle:
+  stop_distance_m: 1.5     # criterion 4
+  sidestep_m: 1.0
+
+orbit:
+  half_circle_deg: 180
+  rate_deg_s: 15
+  person_still_speed_mps: 0.3
+
+limits:
+  max_speed_mps: 2.0       # walking pace plus margin
+  max_altitude_agl_m: 10
+  geofence_radius_m: 50
+  command_rate_hz: 10
+  watchdog_timeout_s: 0.5
+
+control:
+  kp_distance: 0.6
+  kp_bearing: 0.8
+  kp_height: 0.7
+
+detector:
+  model: yolo
+  input_width: 640
+  input_height: 480
+  confidence_min: 0.4
+  target_fps: 15
