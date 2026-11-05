@@ -67,16 +67,16 @@ This timeframe is aggressive in order to get the project completed before the we
 
 Task breakdown by stage. Every task is two hours or less of hands-on time. Waiting time (charging, shipping, firmware builds) is not counted. Hours are best-case estimates with the known failure case noted where one is common; log actual against estimate for the first three tasks and scale the rest.
 
-**Stage 0, Setup and order (Nov 2 to 4), about 5.5 h**
+**Stage 0, Setup and order (Nov 2 to 4), about 5.5 h. Closed Nov 5.** Gate met: success numbers final, repository public, TRUST held, aircraft registered. Remaining orders (Li-Ion packs, prop guards, anemometer) carry into stage 1 as open items and do not hold the gate.
 
-- [ ] Create the public repository, README skeleton, folder layout: 0.5 h
-- [ ] Project board with the six stages as columns and the first week's tasks as cards: 0.5 h
+- [x] Create the public repository, README skeleton, folder layout: 0.5 h (done Nov 4)
+- [x] Project board with Backlog, This week, In progress, Done and the first week's tasks as cards: 0.5 h (done Nov 4)
 - [x] Risk register and decision log in `RISKS.md` and `DECISIONS.md`: 0.75 h (done Nov 4)
 - [x] Decide and write the final success-criteria numbers into the README: 0.5 to 1 h (done Nov 4)
-- [ ] FAA TRUST certificate: 0.5 h. Drone registration on airframe arrival (serial number required): 0.25 h
-- [ ] Order a handheld anemometer; wind speed at the launch point is a required flight-log column: 0.25 h
-- [ ] Confirm the bind-and-fly's board is on the ArduPilot supported list and count spare UARTs from the wiring diagram: 1 h
-- [ ] Place every order from in-stock listings, delivery dates recorded in the decision log: 1 h (done Nov 3; Li-Ion packs by Nov 9 and prop guards after measuring the airframe remain)
+- [x] FAA TRUST certificate: 0.5 h. Drone registration on airframe arrival (serial number required): 0.25 h (done Nov 5)
+- [ ] Order a handheld anemometer; wind speed at the launch point is a required flight-log column: 0.25 h (carried into stage 1)
+- [x] Confirm the bind-and-fly's board is on the ArduPilot supported list and count spare UARTs from the wiring diagram: 1 h (done Nov 3 during platform selection; TAKER H743 BT is an official target; detailed UART assignment is a stage 1 task)
+- [x] Place every order from in-stock listings, delivery dates recorded in the decision log: 1 h (done Nov 3; Li-Ion packs ordered Nov 5, decision 24; prop guards after measuring the airframe carried into stage 1)
 
 **Stage 1, Software (Nov 2 to 11, desk), about 24 to 30 h**
 
