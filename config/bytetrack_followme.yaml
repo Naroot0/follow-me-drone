@@ -1,0 +1,12 @@
+# ByteTrack settings for the follow-me pipeline. Ultralytics format.
+# Differences from the Ultralytics default bytetrack.yaml:
+#   track_buffer 30 -> 60   keep a lost track alive about 3 s at 20 fps instead of 1.5 s
+#   (the detector conf passed to the tracker is lowered in tracker.py so the
+#    low-score second association pass actually receives boxes)
+tracker_type: bytetrack
+track_high_thresh: 0.25   # first association: boxes above this
+track_low_thresh: 0.1     # second association: boxes between low and high
+new_track_thresh: 0.5     # a new ID needs a clean, confident box; cuts fragment tracks during crossings
+track_buffer: 60          # frames a lost track is kept before deletion
+match_thresh: 0.8         # IoU threshold for matching
+fuse_score: True

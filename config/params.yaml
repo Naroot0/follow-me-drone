@@ -44,7 +44,13 @@ control:
 
 detector:
   model: yolo
+  weights: yolo11n.pt      # Ultralytics YOLO11 nano, COCO pretrained, person class only (decision 26)
   input_width: 640
   input_height: 480
   confidence_min: 0.4
   target_fps: 15
+
+tracker:
+  config: config/bytetrack_followme.yaml   # ByteTrack, project settings (decision 27)
+  detector_conf: 0.25      # conf passed to the detector when tracking. 0.1 produced fragment boxes and ID churn during crossings (2026-11-07).
+                           # detector.confidence_min still gates enrollment and follow decisions.
