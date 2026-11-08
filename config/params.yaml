@@ -54,3 +54,10 @@ tracker:
   config: config/bytetrack_followme.yaml   # ByteTrack, project settings (decision 27)
   detector_conf: 0.25      # conf passed to the detector when tracking. 0.1 produced fragment boxes and ID churn during crossings (2026-11-07).
                            # detector.confidence_min still gates enrollment and follow decisions.
+
+reid:
+  model: osnet_x0_25        # OSNet x0.25, MSMT17-trained, 512-d embedding (decision 28)
+  weights: osnet_x0_25_msmt17.pt
+  input_height: 256
+  input_width: 128
+  gallery_max: 30          # embeddings kept per enrolled person (running mean)

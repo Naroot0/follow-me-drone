@@ -15,6 +15,7 @@ crops/
 *.onnx
 *.pt
 *.pth
+weights/
 
 # Python
 __pycache__/

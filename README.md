@@ -53,7 +53,7 @@ src/perception/    detector, tracker, re-ID, enrollment
 src/estimation/    bounding box to range and bearing
 src/control/       velocity commands, station hold, orbit, state machine
 src/safety/        watchdog, geofence, override check
-src/logging/       per-flight CSV logs
+src/flightlog/     per-flight CSV logs (named to avoid shadowing the standard-library logging module)
 sim/               ArduPilot SITL (software in the loop) setup and fake-target scripts
 scripts/           setup and flashing helpers
 logs/              flight logs (gitignored except an example)
