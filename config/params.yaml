@@ -68,3 +68,13 @@ reid:
   gallery_max: 30          # diverse embeddings kept per enrolled person; match = max similarity
   learn_every_frames: 15   # while LOCKED, add at most one gallery view this often
   learn_max_similarity: 0.95  # skip near-duplicate views so the gallery covers poses
+
+mavlink:
+  connection: udpin:0.0.0.0:14551   # SITL via MAVProxy second output; the Jetson will use a serial port
+  target_component: 1
+  type_mask_velocity: 0x0DC7        # ignore position, acceleration, yaw, yaw rate (decision 31)
+  type_mask_velocity_yawrate: 0x05C7  # as above but yaw rate commanded (bit 11 clear); controller use
+  frame: MAV_FRAME_BODY_OFFSET_NED
+  command_rate_hz: 10               # Guided times out below about 3 Hz
+  autopilot_params:
+    WP_YAW_BEHAVIOR: 0              # never auto-yaw; the controller owns yaw
