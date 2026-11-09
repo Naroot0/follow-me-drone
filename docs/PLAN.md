@@ -10,7 +10,7 @@ Build a small camera drone that follows and films one person from 2.5 m behind a
 
 The project's phase 1 is done when all of the following are true:
 
-- [ ] Acquisition: with the person standing 2 to 4 m in front of the drone after takeoff, the drone locks onto them within 5 seconds and signals the lock (an LED or a tone). With a second person in frame, it locks the one nearest the center and never switches targets except after a declared loss. Acquisition is the one-time lock at the start; reacquisition after occlusion is the separate criterion below.
+- [ ] Acquisition: with the person standing 2 to 4 m in front of the drone after takeoff, the drone locks onto them within 10 seconds, holding still for 5 of them (revised from 5 seconds, decision #30), and signals the lock (an LED or a tone). With a second person in frame, it locks the one appearing largest (nearest the camera; a tunable rule, decision #29) and never switches targets except after a declared loss. Acquisition is the one-time lock at the start; reacquisition after occlusion is the separate criterion below.
 
 * [ ] The drone holds station 2.5 m behind and above a walking person (plus or minus 0.5 m) for 10 continuous minutes on an open trail, with no pilot input after takeoff, and records video of the person the whole time.
 * [ ] The drone recovers tracking of the same person on its own after they are hidden for up to 5 seconds (behind a tree, a corner, another person). Longer losses trigger a safe hover, then land in place. When an obstacle comes within 1.5 m, the drone hovers, adjusts, and resumes following without pilot input.
@@ -18,7 +18,7 @@ The project's phase 1 is done when all of the following are true:
 * [ ] While the person stands still, the drone orbits a half circle around them at the set distance, keeping them framed. A 2 to 3 minute video shows following, one occlusion and recovery, and the orbit.
 * [ ] A GitHub repository holds the code, the project board, the risk register, the decision log, and a written report with measured results (distance error over time, lost-track events, recovery times).
 
-Final numbers, set 2026-11-04 (decision #18): acquisition 5 s; station 2.5 m, plus or minus 0.5 m, hard floor 1.5 m; 10 continuous minutes; occlusion recovery up to 5 s; obstacle stop 1.5 m. The pass/fail line was fixed before build work started.
+Final numbers, set 2026-11-04 (decision #18), acquisition revised 2026-11-09 (decision #30): acquisition 10 s with a 5 s still hold; station 2.5 m, plus or minus 0.5 m, hard floor 1.5 m; 10 continuous minutes; occlusion recovery up to 5 s; obstacle stop 1.5 m. The pass/fail line was fixed before build work started.
 
 ## Scope
 
@@ -141,7 +141,8 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 **Stage 5, Flight and report (Nov 26 to Dec 2), about 11 to 13 h**
 
 - [ ] Occlusion test behind a tree: 1.5 h
-- [ ] Loss, hover, land test: 1 h
+- [ ] Occlusion that begins during an obstacle sidestep: five repetitions, loss-to-relock time recorded each time; widen `occlusion_max_s` if re-locks cluster past 5 s (bench finding 2026-11-09): 1 h
+- [ ] Loss, hover, land test, with reacquisition running through the hover: 1 h
 - [ ] Standing orbit, half circle: 1.5 h
 - [ ] Five-minute follow attempt: 1 h
 - [ ] Gain tuning and log review between sessions: 2 h in two blocks

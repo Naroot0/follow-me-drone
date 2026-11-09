@@ -10,7 +10,7 @@ Final numbers, set 2026-11-04. Phase 1 is done when every line below is true in 
 
 | # | Criterion | Pass line |
 |---|-----------|-----------|
-| 1 | Acquisition | With the person standing 2 to 4 m in front of the drone after takeoff, the drone locks onto them within **5 s** and signals the lock (LED or tone). With a second person in frame it locks the one nearest the frame center and never switches targets except after a declared loss. |
+| 1 | Acquisition | With the person standing 2 to 4 m in front of the drone after takeoff, the drone locks onto them within **10 s** (revised from 5 s, decision #30; the person must hold still for 5 s of that) and signals the lock (LED or tone). With a second person in frame it locks the one appearing largest (nearest the camera; a tunable rule, decision #29) and never switches targets except after a declared loss. |
 | 2 | Station hold | Holds station **2.5 m** behind and above a walking person, **plus or minus 0.5 m**, for **10 continuous minutes** on an open trail with no pilot input after takeoff, recording video of the person the whole time. Hard floor **1.5 m**. |
 | 3 | Occlusion recovery | Reacquires the same person on its own after they are hidden for up to **5 s**. Longer losses trigger hover, then land in place. |
 | 4 | Obstacle stop | When an obstacle comes within **1.5 m**, the drone hovers, sidesteps, and resumes following without pilot input. |
