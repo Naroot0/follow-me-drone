@@ -3,11 +3,11 @@
 # Units: meters, seconds, meters per second, degrees.
 
 station:
-  distance_m: 2.5          # criterion 2
-  distance_band_m: 0.5     # plus or minus
+  distance_m: 3.0          # criterion 2; raised from 2.5 m (decision 34)
+  distance_band_m: 1.0     # plus or minus; widened from 0.5 m, so the band is 2.0 to 4.0 m (decision 35)
   distance_floor_m: 1.5    # hard floor, controller never commands closer
   angle_deg: 180           # 180 = directly behind the person; orbit sweeps this
-  height_above_m: 1.5      # above the person's head
+  height_above_m: 1.5      # above the person's head, not above the ground (about 3.2 m above ground for a 1.75 m person)
 
 acquisition:
   timeout_s: 10            # criterion 1, revised from 5 s (decision 30); land on timeout
@@ -24,7 +24,18 @@ reacquisition:
   reacquire_frames: 5      # consecutive frames the same candidate must win before re-lock
 
 loss:
-  hover_then_land_after_s: 15   # after occlusion_max_s; re-identification keeps running through the hover (decision 29)
+  hover_then_land_after_s: 25   # after occlusion_max_s; total reacquisition window 30 s (decision 32)
+
+approach:
+  trigger_m: 1.0           # the person closing by more than this while the drone hovers counts as approaching
+  speed_threshold_mps: 0.3 # the person moving toward the drone faster than this blocks reverse
+                           # response: hover and yaw, no retreat; the person walks past (decision 32)
+
+search:                    # yaw behaviour while the person is lost (decision 32); built in the flight state machine task
+  yaw_rate_dps: 30
+  edge_fraction: 0.15      # last box centre within this fraction of a frame edge counts as leaving by that edge
+  # lost mid-frame: hold heading. Left by a side edge: yaw that way. Left by the bottom edge: yaw 180 degrees.
+  # Not found: continue to one full turn, then hover until the land timer expires.
 
 obstacle:
   stop_distance_m: 1.5     # criterion 4
@@ -40,12 +51,21 @@ limits:
   max_altitude_agl_m: 10
   geofence_radius_m: 50
   command_rate_hz: 10
+  max_yaw_rate_dps: 90
+  max_reverse_mps: 0.5     # reverse speed limit; reverse is for brake recovery only (decision 33)
+  max_reverse_distance_m: 1.0   # most the drone backs up in one brake recovery (decision 33)
   watchdog_timeout_s: 0.5
 
 control:
-  kp_distance: 0.6
-  kp_bearing: 0.8
+  # Structure agreed 2026-11-10 (decision 33). Gain values come from an offline simulation and are untuned until the SITL run.
+  kp_distance: 1.0         # m/s of forward speed per metre of range error (was 0.6)
+  kp_bearing: 3.0          # rad/s of yaw rate per radian of bearing error (0.8 originally; 2.0 let the person reach the view edge in the noisy SITL turn)
   kp_height: 0.7
+  feedforward_gain: 1.0    # fraction of the person's estimated speed added to forward speed; 0 = pure proportional
+  range_filter_alpha: 0.5  # alpha-beta filter on range; supplies the range rate for the feedforward
+  range_filter_beta: 0.1
+  reverse_window_s: 2.0    # reverse may start only this soon after the drone's own forward flight
+  coast_s: 0.3             # hold the last command through missed frames this long, then hover; 0 disables
 
 detector:
   model: yolo
