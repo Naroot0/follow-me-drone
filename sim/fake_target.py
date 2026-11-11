@@ -1,7 +1,9 @@
 """Scripted fake person for SITL and offline tests.
 
 The person is a point in the local north-east plane. Segments are
-(duration_s, speed_mps, turn_deg): the turn is applied at the start of the segment.
+(duration_s, speed_mps, turn_deg[, options]): the turn is applied at the start of the
+segment. Options: "hidden" (out of the camera's sight for the segment), "instant"
+(the speed change is immediate).
 Speed changes ramp at `accel` rather than jumping, as a walking person's do.
 """
 import math
@@ -21,6 +23,7 @@ class FakeTarget:
     def __init__(self, north, east, heading_rad, script=DEFAULT_SCRIPT, accel=1.5):
         self.accel = accel       # m/s^2; a person takes about a second to reach or leave walking pace
         self.goal_speed = 0.0
+        self.hidden = False
         self.n, self.e, self.h = north, east, heading_rad
         self.script = script
         self.t = 0.0
@@ -39,7 +42,12 @@ class FakeTarget:
     def step(self, dt):
         while self.t >= self.seg_end and self.i < len(self.script) - 1:
             self.i += 1
-            dur, self.goal_speed, turn = self.script[self.i]
+            seg = self.script[self.i]
+            dur, self.goal_speed, turn = seg[0], seg[1], seg[2]
+            opts = seg[3] if len(seg) > 3 else ()
+            self.hidden = "hidden" in opts          # behind an obstacle: the camera cannot see the person
+            if "instant" in opts:                   # a dart: speed changes at once
+                self.speed = self.goal_speed
             self.h += math.radians(turn)
             self.seg_end += dur
         step = self.accel * dt
@@ -53,6 +61,6 @@ class FakeTarget:
         dn, de = self.n - north, self.e - east
         rng = math.hypot(dn, de)
         brg = (math.atan2(de, dn) - yaw_rad + math.pi) % (2 * math.pi) - math.pi
-        if abs(brg) > math.radians(fov_deg) / 2:
+        if self.hidden or abs(brg) > math.radians(fov_deg) / 2:
             return None, None
         return rng, brg

@@ -6,11 +6,11 @@ station:
   distance_m: 3.0          # criterion 2; raised from 2.5 m (decision 34)
   distance_band_m: 1.0     # plus or minus; widened from 0.5 m, so the band is 2.0 to 4.0 m (decision 35)
   distance_floor_m: 1.5    # hard floor, controller never commands closer
-  angle_deg: 180           # 180 = directly behind the person; orbit sweeps this
+  angle_deg: 180           # 180 = directly behind the person; unused in Phase 1 (trailing follow), Phase 2 orbit sweeps this
   height_above_m: 1.5      # above the person's head, not above the ground (about 3.2 m above ground for a 1.75 m person)
 
 acquisition:
-  timeout_s: 10            # criterion 1, revised from 5 s (decision 30); land on timeout
+  timeout_s: 30            # give up and land if nobody is enrolled by then (was 10 s; criterion 1 itself is unchanged)
   hold_s: 5                # one person must be the largest box, nearly still, this long to enroll
   still_max_motion: 0.15   # smoothed box-centre speed in box heights per second; bench value, retune on the airframe
   still_smooth_frames: 10  # centre is averaged over this many frames before measuring motion
@@ -41,7 +41,7 @@ obstacle:
   stop_distance_m: 1.5     # criterion 4
   sidestep_m: 1.0
 
-orbit:
+orbit:                     # Phase 2 (decision 36); unused in v1.0
   half_circle_deg: 180
   rate_deg_s: 15
   person_still_speed_mps: 0.3

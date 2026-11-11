@@ -15,8 +15,8 @@ Final numbers, set 2026-11-04. Phase 1 is done when every line below is true in 
 | 3 | Occlusion recovery | Reacquires the same person on its own after they are hidden for up to **5 s**. Longer losses trigger hover, then land in place. |
 | 4 | Obstacle stop | When an obstacle comes within **1.5 m**, the drone hovers, sidesteps, and resumes following without pilot input. |
 | 5 | GPS loss | Recovers from GPS loss with no jump in position and no change in behavior, logs the source switch, and reacquires the target automatically, or lands safely for retrieval. |
-| 6 | Orbit | While the person stands still, orbits a half circle around them at the set distance, keeping them framed. |
-| 7 | Evidence | A 2 to 3 minute video shows following, one occlusion and recovery, and the orbit. A written report gives measured results: distance error over time, lost-track events, recovery times. |
+| 6 | Orbit | Moved to Phase 2 with front-facing shots (decision #36). In Phase 1 the drone hovers while the person stands still. |
+| 7 | Evidence | A 2 to 3 minute video shows following, and one occlusion and recovery. A written report gives measured results: distance error over time, lost-track events, recovery times. |
 
 Operating envelope for Phase 1: one person, daylight, wind under 5 m/s measured at the launch point with a handheld anemometer, open ground through hiking trails. No night, rain, snow deeper than 25 mm (1 in), crowds, or indoor flight. Snow operation is out of scope for every phase. See `docs/PLAN.md` for scope, deferred items, and the stage schedule.
 
@@ -51,7 +51,7 @@ FLIGHT_LOG.md      one row per flight or simulation run
 config/            every tunable parameter, named, in one file
 src/perception/    detector, tracker, re-ID, enrollment
 src/estimation/    bounding box to range and bearing
-src/control/       velocity commands, station hold, orbit, state machine
+src/control/       velocity commands, station hold, flight state machine
 src/safety/        watchdog, geofence, override check
 src/flightlog/     per-flight CSV logs (named to avoid shadowing the standard-library logging module)
 sim/               ArduPilot SITL (software in the loop) setup and fake-target scripts
