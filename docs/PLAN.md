@@ -95,6 +95,7 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [ ] Config file with every parameter named: 1 h
 - [ ] Read the TAKER H743 BT wiring diagram and ArduPilot board page; record which socket or pads the receiver, GPS and video unit use; set four TF-Lunas to I2C with distinct addresses over the FTDI adapter for the Jetson header (decision 41). The GEP-M1025 GPS has no compass and none is ordered (decision 42): 2 h
 - [x] Simulation test of the first two compass-free routes in decision 42 (no heading source; Jetson-supplied gyro heading): each passes if Guided accepts velocity commands and the aircraft holds position on optical flow for two minutes: 1 h (done Nov 14: both pass; route 1 is carried forward)
+- [x] Simulation test of an optical-flow dropout in the compass-free configuration (3 s and 15 s, calm and 4 m/s wind): the aircraft ends holding position or landed, with no crash (decision 44): 0.5 h (done Nov 14: lands safely in all four cases; drifts 5.7 m downwind in 4 m/s wind during the descent)
 - [ ] Bench check once the MTF-01 is mounted: the rangefinder returns a valid reading with the aircraft sitting on the ground, which the estimator needs before it reports a position: 0.5 h
 - [ ] Soldering practice on pads with 30 AWG wire, two sessions: 2 h
 - [ ] Jetson, on arrival: flash the JetPack 6 SD image to the Samsung EVO 512 GB from the Mac with balenaEtcher, first boot headless over USB-C or with the DisplayPort adapter, then migrate to the NVMe: 0.5 h (failure case: firmware update needed before boot, add 1 h)

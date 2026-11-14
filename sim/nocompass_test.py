@@ -172,16 +172,13 @@ class Link:
         return self.acks.get(cmd)
 
 
-def start_sitl(root, case, instance, outdir, wind=0.0):
+def start_sitl(root, params, instance, outdir):
     binary = root / "build" / "sitl" / "bin" / "arducopter"
     if not binary.exists():
         raise RuntimeError(f"SITL binary not found at {binary}. Run sim_vehicle.py once to build it.")
     if outdir.exists():
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True)
-    params = dict(COMMON, **CASES[case][1])
-    if wind:
-        params.update({"SIM_WIND_SPD": wind, "SIM_WIND_DIR": 0})
     parm = outdir / "case.parm"
     parm.write_text("".join(f"{k} {v}\n" for k, v in params.items()))
     defaults = root / "Tools" / "autotest" / "default_params" / "copter.parm"
@@ -189,7 +186,7 @@ def start_sitl(root, case, instance, outdir, wind=0.0):
             "--home", ",".join(str(v) for v in HOME),
             "--defaults", f"{defaults},{parm}", "--sim-address=127.0.0.1"]
     out = open(outdir / "sitl.log", "w")
-    return subprocess.Popen(args, cwd=outdir, stdout=out, stderr=subprocess.STDOUT), params
+    return subprocess.Popen(args, cwd=outdir, stdout=out, stderr=subprocess.STDOUT)
 
 
 def connect(port, log):
@@ -219,7 +216,10 @@ def run_case(case, instance, root, hold_s=120.0, wind=0.0):
         return bool(ok)
 
     try:
-        proc, params = start_sitl(pathlib.Path(root), case, instance, outdir, wind)
+        params = dict(COMMON, **CASES[case][1])
+        if wind:
+            params.update({"SIM_WIND_SPD": wind, "SIM_WIND_DIR": 0})
+        proc = start_sitl(pathlib.Path(root), params, instance, outdir)
         log = open(outdir / "test.log", "w")
         m = connect(5760 + 10 * instance, log)
         link = Link(m, log, feed_heading=(case == "jetson"))
