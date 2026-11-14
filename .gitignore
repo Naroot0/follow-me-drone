@@ -33,3 +33,6 @@ venv/
 
 # Private planning notes, never committed
 private/
+
+# Simulator test output
+sim/out/

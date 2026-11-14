@@ -30,11 +30,13 @@ Detection rate, track continuity (longest and mean unbroken track), reacquisitio
 |------|--------|
 | Airframe | GEPRC MOZ7 V2 (7-inch, 336 mm wheelbase, 750 g stock), bind-and-fly |
 | Flight controller | TAKER H743 BT (STM32H743), ArduPilot target |
-| Receiver | NewBeeDrone BeeCeiver ELRS 2.4 GHz diversity (swapped in for the TBS Nano) |
+| Receiver | TBS Crossfire Nano, factory fitted (decision 43) |
+| Radio | TBS Tango 2 Pro, Crossfire built in |
 | Companion computer | NVIDIA Jetson Orin Nano Super developer kit, 256 GB NVMe |
 | Camera | ELP AR0234 color global-shutter USB, 100 degree lens |
-| Position hold without GPS | MicoAir MTF-01 optical flow plus 8 m rangefinder |
-| Obstacle sensors | Four TF-Luna time-of-flight rangefinders on I2C (sides, rear, up) |
+| Position hold without GPS | MicoAir MTF-01 optical flow plus 8 m rangefinder, connected through the Jetson (decision 41) |
+| Compass | None fitted; heading handled in software (decision 42) |
+| Obstacle sensors | Four TF-Luna time-of-flight rangefinders on the Jetson's I2C pins (sides, rear, up) |
 | Jetson power | 6S pack to XT60 Y splitter to 24 V to 12 V 5 A converter to barrel jack (zero solder) |
 | Batteries | Three RDQ 6S 1300 mAh LiPo for stage 2; 6S 8000 mAh class Li-Ion for stage 3 onward |
 

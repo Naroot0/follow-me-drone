@@ -43,7 +43,7 @@ Everything that does not serve the success criteria is out of scope or deferred 
 | Control | The controller holds a set distance and a set angle from the person (3.0 m, behind and above, by default), holds altitude from the downward rangefinder, and hovers while the person stands still. On an obstacle reading inside the stop distance it hovers, sidesteps, and resumes. On track loss it hovers in place; on prolonged loss it lands. Every distance, angle, timeout, and gain is a named parameter in one config file. | No orbit while the person is walking in v1.0 (it comes after v1.0 as a point release). No aggressive maneuvers: speeds above walking pace, flips, or banked turns. No return-to-home, because it would depend on GPS. | Front-facing travel. Faster subjects (trail running, mountain biking) at 3 to 8 m/s, where the station distance opens to 4 m or more and the obstacle stop to 2 to 3 m. Steep-terrain following from a forward station angle with a slope-aware altitude rule. Cinematic camera moves beyond the standing orbit. |
 | Environment | One person is followed. Any outdoor terrain from open ground through hiking trails to rugged ground qualifies, in daylight and light wind (under about 5 m/s). | No night flying, no rain, no snow deeper than 25 mm (1 in), no thick brush the person could walk through but the drone could not, no crowds where more than two or three people are in frame, and no indoor flight. Bench tests indoors with props removed are not flight and are fine. | Cold-weather operation on bare or near-bare ground. Cold cuts pack capacity 20 to 30 percent, so the 15 min target becomes about 11 min. Snow deeper than 25 mm (1 in) is out of scope for every phase: the airframe is not waterproof and the landing gear does not clear deeper snow (decision 20). |
 | Autonomy | After a pilot-commanded takeoff and a mode switch on the radio, the drone flies with no pilot input. The pilot's radio link stays armed the whole flight and any stick input overrides the autonomy instantly. On prolonged track loss the drone hovers on optical flow, then lands in place; it never attempts return-to-home. | No autonomous takeoff or routine landing as features: the drone does not start a mission by itself, land on a pad or marker, or decide the hike is over. Those stay pilot-commanded. The failsafe landing on prolonged loss is different: it is the autopilot's built-in LAND mode, a safety behavior, and it is in scope. | Front-follow while the person is walking, and a climb mode for steep terrain. One-button takeoff and a land-here button are candidates for Phase 2 convenience. |
-| Platform | One prebuilt long-range 7-inch quadcopter, 7-inch being the maximum size, with a Jetson Orin Nano Super companion computer plugged in. Integration is minimal-solder: thin signal wires to flight-controller pads are acceptable; battery, ESC, and motor leads are never soldered by the builder. | No fixed-wing or VTOL aircraft. No custom frame design or bare-frame build. No second drone. No companion computer larger than the Orin Nano unless a second camera forces it. | Nothing. This stays a one-drone project; Phase 2 adds sensors to the same airframe. |
+| Platform | One prebuilt long-range 7-inch quadcopter, 7-inch being the maximum size, with a Jetson Orin Nano Super companion computer plugged in. Integration is minimal-solder: added sensors plug into the Jetson and no solder joint is made on the aircraft unless the compass fallback in decision 42 is needed; battery, ESC, and motor leads are never soldered by the builder. | No fixed-wing or VTOL aircraft. No custom frame design or bare-frame build. No second drone. No companion computer larger than the Orin Nano unless a second camera forces it. | Nothing. This stays a one-drone project; Phase 2 adds sensors to the same airframe. |
 | Deliverables | A public code repository, a project board, a risk register, a decision log, a flight log, a written report with measured results, and a 2 to 3 minute demo video. | No paper submission and no patent filing. No YouTube build series as a required deliverable (it is optional; see Open decisions). | After v1.0, a cheaper-compute study: quantize and prune the models, measure accuracy and frame rate at each step, and test whether the same behavior runs on a Raspberry Pi 5 with a low-cost accelerator. |
 
 ## Phases and milestones
@@ -93,7 +93,9 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [x] State machine Enroll, Follow, Lost (hover), Land: 1.5 h
 - [ ] Watchdog on command rate, speed limit, geofence, override check: 1 h
 - [ ] Config file with every parameter named: 1 h
-- [ ] Read the TAKER H743 BT wiring diagram and ArduPilot board page; assign receiver, GPS, Jetson MAVLink and MTF-01 to UARTs; set four TF-Lunas to I2C with distinct addresses over the FTDI adapter; confirm the GEP-M1025 GPS includes a compass and order one if not: 2 h
+- [ ] Read the TAKER H743 BT wiring diagram and ArduPilot board page; record which socket or pads the receiver, GPS and video unit use; set four TF-Lunas to I2C with distinct addresses over the FTDI adapter for the Jetson header (decision 41). The GEP-M1025 GPS has no compass and none is ordered (decision 42): 2 h
+- [x] Simulation test of the first two compass-free routes in decision 42 (no heading source; Jetson-supplied gyro heading): each passes if Guided accepts velocity commands and the aircraft holds position on optical flow for two minutes: 1 h (done Nov 14: both pass; route 1 is carried forward)
+- [ ] Bench check once the MTF-01 is mounted: the rangefinder returns a valid reading with the aircraft sitting on the ground, which the estimator needs before it reports a position: 0.5 h
 - [ ] Soldering practice on pads with 30 AWG wire, two sessions: 2 h
 - [ ] Jetson, on arrival: flash the JetPack 6 SD image to the Samsung EVO 512 GB from the Mac with balenaEtcher, first boot headless over USB-C or with the DisplayPort adapter, then migrate to the NVMe: 0.5 h (failure case: firmware update needed before boot, add 1 h)
 - [ ] First boot, Ubuntu setup, network, SSH, updates: 1 h
@@ -103,24 +105,25 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 
 **Stage 2, Airframe (Nov 5 to 11, sky on Nov 8 and 9), about 11 to 14 h**
 
-- [ ] Unbox on Nov 5, inspect props and arms, confirm the FC label reads TAKER H743 BT, cell-check and charge the three RDQ 1300 mAh packs: 0.5 h
-- [ ] Swap the TBS Nano receiver for the BeeCeiver ELRS diversity receiver, bind, build the radio model, map channels, arm switch: 1.5 h
-- [ ] Stock-firmware check and first hover in the yard: 1 h
-- [ ] Two manual sessions of 15 to 20 minutes: 2 h
-- [ ] Back up the stock config, flash ArduPilot through the bootloader: 1 h
+- [ ] Inspect props and arms, confirm the FC label reads TAKER H743 BT, cell-check the three RDQ 1300 mAh packs (charged 2026-11-11): 0.5 h
+- [ ] Bind the TBS Tango 2 Pro radio to the factory-fitted TBS Nano receiver (decision 43); build the radio model, map channels, arm switch: 1.5 h
+- [ ] Stock-firmware bench check with props off: stick directions, arm switch, motor spin directions, radio-loss failsafe cuts the motors: 1 h
+- [ ] First flights on the stock firmware in self-leveling mode, in a sheltered spot or the barn: gentle takeoffs and landings, then a steady hover: 1 h
+- [ ] Manual practice on the stock firmware until takeoff, landing and hover are repeatable, at least two sessions of 15 to 20 minutes: 2 h
+- [ ] Back up the stock config, flash ArduPilot through the bootloader, only after the aircraft has flown as expected on the stock firmware: 1 h
 - [ ] Frame type, motor order and direction test in QGroundControl: 1 h
-- [ ] Calibrate accelerometer, compass, radio, ESCs: 1.5 h
+- [ ] Calibrate accelerometer, radio, ESCs; no compass is fitted (decision 42): 1 h
 - [ ] Modes on a switch (Stabilize, AltHold, Loiter, Guided), battery failsafe, radio-loss failsafe to Land, geofence: 1.5 h
-- [ ] Hover in Stabilize, then AltHold, vibration log checked: 1.5 h
-- [ ] Decide the Remote ID approach (module, ArduPilot OpenDroneID, or none) and record it in the decision log; order hardware if chosen: 0.5 h, due Nov 11
+- [ ] Under ArduPilot: hover in Stabilize, then AltHold; Loiter follows once a heading route from decision 42 is proven; vibration log checked: 1.5 h
+- [x] Decide the Remote ID approach and record it in the decision log (decision 37, 2026-11-11)
 - [ ] Manual PID pass only if it oscillates: 0 to 2 h
 
 **Stage 3, Data and GPS-free hold (Nov 12 to 18, sky on Nov 15 and 16), about 12 to 15 h**
 
 - [ ] Power chain bench test: Y splitter, XT60 pigtail, 24 V to 12 V converter and Wago joints taped and zip-tied; verify 12 V at the barrel jack with the multimeter before it meets the Jetson; full Jetson load, no brownout: 1 h
 - [ ] Jetson and camera mounted on standoffs, cables routed: 1.5 h
-- [ ] MAVLink link Jetson to flight controller, heartbeat and attitude confirmed, serial parameters set: 1.5 h
-- [ ] Optical-flow sensor and rangefinder cabled and parameters set: 1.5 h
+- [ ] MAVLink link Jetson to flight controller over USB-C, heartbeat and attitude confirmed, serial parameters set: 1.5 h
+- [ ] Optical-flow sensor and rangefinder cabled to the Jetson, data forwarded to the flight controller, parameters set (decision 41): 1.5 h
 - [ ] Power mode, fan curve, thermal check under load: 0.5 h
 - [ ] Flow calibration flight and log review: 1.5 h (failure case: scale wrong, repeat once, add 1 h)
 - [ ] Loiter test with GPS disabled, two minutes: 1 h
@@ -178,11 +181,11 @@ Decided 2026-10-30 (approach) and 2026-11-03 (hardware). Decision log entries 6 
 | --- | --- | --- |
 | The O4 Pro digital video system is unused | About $200 of the $820 price buys nothing the project needs | Can be removed and sold; the project camera is a separate USB global-shutter unit on the Jetson |
 | Stock firmware is Betaflight, not ArduPilot | One-time flash through the bootloader, then full calibration and failsafe setup; the vendor's tune does not carry over | Stage 2 tasks; stock configuration backed up first; manual PID pass budgeted at 0 to 2 h |
-| The TBS Nano receiver does not match the existing ELRS radio | Receiver swap and bind before first flight | BeeCeiver ELRS diversity receiver ordered with the airframe; 1.5 h stage 2 task |
+| The TBS Nano receiver does not match the existing ELRS radio | A Crossfire radio is needed before first flight | TBS Tango 2 Pro radio ordered (decision 43); the BeeCeiver ELRS receiver ordered with the airframe is kept as a spare |
 | The flight controller's onboard 12 V 2.5 A regulator cannot power the Jetson | Separate 12 V 5 A path from the main pack adds mass and a failure point | Bench-tested at full Jetson load before the Jetson flies |
 | No Remote ID broadcast | Required for a registered aircraft outside an FRIA | Open decision, due Nov 11 (see decision log entry 19) |
 | Li-Ion pack sizing depends on all-up weight that is not yet measured | 10 min criterion fails on endurance if packs underdeliver | Packs ordered by Nov 9 against measured weight; stage 2 flies on existing 1300 mAh LiPos |
-| First-time ArduPilot integration on a racing-class frame | Vibration, compass interference from the ESC, and tuning risk are higher than on a Pixhawk-class kit | Vibration log check and compass calibration are explicit stage 2 gates |
+| First-time ArduPilot integration on a racing-class frame | Vibration and tuning risk are higher than on a Pixhawk-class kit | Vibration log check is an explicit stage 2 gate; no compass is fitted (decision 42) |
 
 Phase 1 flies one camera plus the time-of-flight sensors that cover its blind spots (sides, up, down, and rear). A second camera or stereo module is a Phase 2 addition on the same frame (decision log entry 6).
 
