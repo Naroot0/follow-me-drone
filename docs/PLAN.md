@@ -76,7 +76,7 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [x] FAA TRUST certificate: 0.5 h. Drone registration on airframe arrival (serial number required): 0.25 h (done Nov 5)
 - [ ] Order a handheld anemometer; wind speed at the launch point is a required flight-log column: 0.25 h (carried into stage 1)
 - [x] Confirm the bind-and-fly's board is on the ArduPilot supported list and count spare UARTs from the wiring diagram: 1 h (done Nov 3 during platform selection; TAKER H743 BT is an official target; detailed UART assignment is a stage 1 task)
-- [x] Place every order from in-stock listings, delivery dates recorded in the decision log: 1 h (done Nov 3; Li-Ion packs ordered Nov 5, decision 24; prop guards after measuring the airframe carried into stage 1)
+- [x] Place every order from in-stock listings, delivery dates recorded in the decision log: 1 h (done Nov 3; Li-Ion packs ordered Nov 5, decision 24, delivered by Nov 17; prop guards after measuring the airframe carried into stage 1)
 
 **Stage 1, Software (Nov 2 to 11, desk), about 24 to 30 h**
 
@@ -98,21 +98,23 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [x] Simulation test of an optical-flow dropout in the compass-free configuration (3 s and 15 s, calm and 4 m/s wind): the aircraft ends holding position or landed, with no crash (decision 44): 0.5 h (done Nov 14: lands safely in all four cases; drifts 5.7 m downwind in 4 m/s wind during the descent)
 - [ ] Bench check once the MTF-01 is mounted: the rangefinder returns a valid reading with the aircraft sitting on the ground, which the estimator needs before it reports a position: 0.5 h
 - [ ] Soldering practice on pads with 30 AWG wire, two sessions: 2 h
-- [ ] Jetson, on arrival: flash the JetPack 6 SD image to the Samsung EVO 512 GB from the Mac with balenaEtcher, first boot headless over USB-C or with the DisplayPort adapter, then migrate to the NVMe: 0.5 h (failure case: firmware update needed before boot, add 1 h)
-- [ ] First boot, Ubuntu setup, network, SSH, updates: 1 h
-- [ ] PyTorch from NVIDIA's wheels for the JetPack version; no source builds: 1 h
-- [ ] USB camera stream verified at flight resolution and frame rate: 0.5 h
-- [ ] Port the perception code, export the detector to TensorRT, measure frames per second: 1.5 h
+- [x] Jetson: flash the JetPack 6.2.1 SD card image to the Samsung EVO 512 GB from the Mac with balenaEtcher and boot headless over USB-C: 0.5 h (done Nov 17; the factory firmware booted the image, no firmware update needed. JetPack 6.2 is kept in preference to 7.2 because the PyTorch and detector toolchain is proven on it)
+- [ ] Move the Jetson's system from the SD card to the NVMe drive: 1 h
+- [x] First boot, Ubuntu setup, network, SSH: 1 h (done Nov 17: Jetson Linux 36.4.4, 7.4 GB memory, Wi-Fi and remote login working, MAXN SUPER power mode; package list refreshed, system upgrade held until PyTorch and the camera are verified)
+- [x] PyTorch from prebuilt wheels for the JetPack version; no source builds: 1 h (done Nov 18: torch 2.10.0 and torchvision 0.25.0 with GPU support, TensorRT 10.3.0, CUDA 12.6; YOLO11n ran one test image at 28 ms inference before any TensorRT export)
+- [x] USB camera stream verified at flight resolution and frame rate: 0.5 h (done Nov 18: 640 by 480 at 30 frames per second on the Jetson; camera plus TensorRT detector also 30 frames per second, limited by the camera's rate setting. Exposure is correct indoors. Orientation matters: the detector's confidence on the same person was 0.85 with the camera upright and 0.64 with it on its side, so the camera is mounted upright)
+- [x] Export the detector to TensorRT on the Jetson and measure its speed: 0.75 h (done Nov 18: YOLO11n FP16 engine at 480 by 640, 63 frames per second against 37 for the PyTorch model, detector step only on a repeated still frame)
+- [ ] Port the perception code (tracker, re-ID, target selection) to the Jetson and measure end-to-end frames per second with the camera: 1.5 h
 
 **Stage 2, Airframe (Nov 5 to 11, sky on Nov 8 and 9), about 11 to 14 h**
 
 - [ ] Inspect props and arms, confirm the FC label reads TAKER H743 BT, cell-check the three RDQ 1300 mAh packs (charged 2026-11-11): 0.5 h
 - [ ] Bind the TBS Tango 2 Pro radio to the factory-fitted TBS Nano receiver (decision 43); build the radio model, map channels, arm switch: 1.5 h
-- [ ] Stock-firmware bench check with props off: stick directions, arm switch, motor spin directions, radio-loss failsafe cuts the motors: 1 h
+- [ ] Stock-firmware bench check with props off: stick directions, arm switch, motor spin directions, radio-loss failsafe cuts the motors: 1 h (Nov 17: settings backed up, ports read and motor positions and directions confirmed without the radio; stick directions, arm switch and failsafe wait for the radio. The stock failsafe is GPS Rescue, not a motor cut)
 - [ ] First flights on the stock firmware in self-leveling mode, in a sheltered spot or the barn: gentle takeoffs and landings, then a steady hover: 1 h
 - [ ] Manual practice on the stock firmware until takeoff, landing and hover are repeatable, at least two sessions of 15 to 20 minutes: 2 h
 - [ ] Back up the stock config, flash ArduPilot through the bootloader, only after the aircraft has flown as expected on the stock firmware: 1 h
-- [ ] Frame type, motor order and direction test in QGroundControl: 1 h
+- [ ] Frame type, motor order and direction test in QGroundControl; the stock firmware remaps the motor outputs (2,3,0,1) and has the GPS on UART6, and both carry into the ArduPilot setup: 1 h
 - [ ] Calibrate accelerometer, radio, ESCs; no compass is fitted (decision 42): 1 h
 - [ ] Modes on a switch (Stabilize, AltHold, Loiter, Guided), battery failsafe, radio-loss failsafe to Land, geofence: 1.5 h
 - [ ] Under ArduPilot: hover in Stabilize, then AltHold; Loiter follows once a heading route from decision 42 is proven; vibration log checked: 1.5 h
@@ -128,7 +130,7 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [ ] Power mode, fan curve, thermal check under load: 0.5 h
 - [ ] Flow calibration flight and log review: 1.5 h (failure case: scale wrong, repeat once, add 1 h)
 - [ ] Loiter test with GPS disabled, two minutes: 1 h
-- [ ] Data session 1, hover-and-walk on a trail, three packs: 1.5 h
+- [ ] Data session 1, hover-and-walk on a local rail trail (open, flat ground, chosen for Phase 1 because the landing fallback in decision 44 does not check the ground), three packs: 1.5 h
 - [ ] Data sessions 2 and 3, second pilot if available: 3 h in two blocks
 - [ ] Handheld rig walk for moving-camera footage: 1 h
 
