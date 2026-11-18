@@ -87,6 +87,7 @@ reid:
   input_width: 128
   gallery_max: 30          # diverse embeddings kept per enrolled person; match = max similarity
   learn_every_frames: 15   # while LOCKED, add at most one gallery view this often
+  learn_check_every_frames: 5   # while locked, re-ID runs on the target at most this often, and only until the gallery is full
   learn_max_similarity: 0.95  # skip near-duplicate views so the gallery covers poses
 
 mavlink:

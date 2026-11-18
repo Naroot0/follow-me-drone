@@ -104,7 +104,8 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [x] PyTorch from prebuilt wheels for the JetPack version; no source builds: 1 h (done Nov 18: torch 2.10.0 and torchvision 0.25.0 with GPU support, TensorRT 10.3.0, CUDA 12.6; YOLO11n ran one test image at 28 ms inference before any TensorRT export)
 - [x] USB camera stream verified at flight resolution and frame rate: 0.5 h (done Nov 18: 640 by 480 at 30 frames per second on the Jetson; camera plus TensorRT detector also 30 frames per second, limited by the camera's rate setting. Exposure is correct indoors. Orientation matters: the detector's confidence on the same person was 0.85 with the camera upright and 0.64 with it on its side, so the camera is mounted upright)
 - [x] Export the detector to TensorRT on the Jetson and measure its speed: 0.75 h (done Nov 18: YOLO11n FP16 engine at 480 by 640, 63 frames per second against 37 for the PyTorch model, detector step only on a repeated still frame)
-- [ ] Port the perception code (tracker, re-ID, target selection) to the Jetson and measure end-to-end frames per second with the camera: 1.5 h
+- [x] Port the perception code (tracker, re-ID, target selection) to the Jetson and measure end-to-end frames per second with the camera: 1.5 h (done Nov 18: 15.5 frames per second end to end, on the target with no margin. The re-ID model takes 48 ms per frame in PyTorch and is the bottleneck; detector and tracker take 20 ms)
+- [ ] Speed up re-ID on the Jetson (TensorRT export of the OSNet model, and no re-ID on frames where it is not needed) and re-measure: 1 h
 
 **Stage 2, Airframe (Nov 5 to 11, sky on Nov 8 and 9), about 11 to 14 h**
 

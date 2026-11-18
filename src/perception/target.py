@@ -8,6 +8,7 @@ States
              nearly still, for acquisition.hold_s. Times out after
              acquisition.timeout_s -> FAILED (caller lands).
   LOCKED     target track ID visible this frame; gallery learns new views slowly.
+             Re-ID runs only on the target, and only when a new view is due.
   LOST       target track ID missing; every visible track is a candidate.
              Re-lock rule (per frame):
                s(t) = max similarity of track t to any gallery embedding
@@ -73,6 +74,7 @@ class TargetSelector:
         self.still_smooth = int(acq.get("still_smooth_frames", 10))
         self.gallery_max = int(rid.get("gallery_max", 30))
         self.learn_every = int(rid.get("learn_every_frames", 15))
+        self.check_every = int(rid.get("learn_check_every_frames", max(1, self.learn_every // 3)))
         self.learn_hi = float(rid.get("learn_max_similarity", 0.95))
         self.reid = reid
 
@@ -82,6 +84,7 @@ class TargetSelector:
         self.gallery = []
         self.frame = 0
         self.last_learn = -10**9
+        self.last_check = -10**9
         # enrollment bookkeeping
         self.cand_id = None
         self.cand_since = None
@@ -180,20 +183,21 @@ class TargetSelector:
                 out.target_box = b
             return out
 
-        # LOCKED or LOST: need embeddings of everything visible
-        feats = self.reid.embed_many(frame, boxes) if len(boxes) else np.zeros((0, 512), np.float32)
-        scores = {}
-        for tid, f in zip(ids, feats):
-            if not np.isnan(f).any():
-                scores[tid] = ReID.best_match(self.gallery, f)
-        out.scores = scores
-
         if self.state == LOCKED:
             if self.target_id in ids:
                 k = ids.index(self.target_id)
                 out.target_box = boxes[k]
-                if self.target_id in scores:
-                    self._learn(feats[k], scores[self.target_id])
+                # While locked the tracker carries the identity. Re-ID is needed only to learn a
+                # new view of the target, so it runs on the target alone and only when a view is due.
+                if (len(self.gallery) < self.gallery_max
+                        and self.frame - self.last_learn >= self.learn_every
+                        and self.frame - self.last_check >= self.check_every):
+                    self.last_check = self.frame
+                    f = self.reid.embed(frame, boxes[k])
+                    if not np.isnan(f).any():
+                        s = ReID.best_match(self.gallery, f)
+                        out.scores = {self.target_id: s}
+                        self._learn(f, s)
             else:
                 self.state = LOST
                 self.lost_since = t
@@ -203,7 +207,15 @@ class TargetSelector:
             out.state = self.state
             return out
 
-        # LOST or DROPPED: both scan for the target; DROPPED means the caller is hovering
+        # LOST or DROPPED: both scan for the target, so every visible track is embedded and scored.
+        # DROPPED means the caller is hovering.
+        feats = self.reid.embed_many(frame, boxes) if len(boxes) else np.zeros((0, 512), np.float32)
+        scores = {}
+        for tid, f in zip(ids, feats):
+            if not np.isnan(f).any():
+                scores[tid] = ReID.best_match(self.gallery, f)
+        out.scores = scores
+
         gone = t - self.lost_since
         if self.state == LOST and gone > self.occlusion_max_s:
             self.state = DROPPED

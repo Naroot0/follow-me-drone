@@ -13,6 +13,14 @@ Library use:
     vecs = reid.embed_many(frame, xyxy_array)         # N crops -> (N, 512)
     sim = ReID.cosine(vec_a, vec_b)                    # -1..1, higher = more alike
 
+Backends:
+    On an NVIDIA GPU (the Jetson) the model runs through ONNX Runtime, on TensorRT
+    with 16-bit precision when available and otherwise on CUDA. The ONNX file is
+    written next to the weights on first use and the TensorRT engine is cached
+    there, so the first start takes a few minutes and later starts take seconds.
+    Elsewhere (the Mac) it runs in PyTorch. ReID(backend="torch") forces PyTorch.
+    python src/perception/reid.py --selftest   compares the two backends on this machine
+
 Bench (webcam, uses the tracker for boxes):
     python src/perception/reid.py --camera 0
     keys:  e  enroll the largest tracked person as the target
@@ -83,8 +91,43 @@ def load_state_dict(model, path):
         raise RuntimeError(f"checkpoint mismatch. missing={missing[:5]} unexpected={unexpected[:5]}")
 
 
+def export_onnx(model, path):
+    """Write the model as ONNX with a fixed one-crop input, for the accelerated backend."""
+    dummy = torch.zeros(1, 3, INPUT_H, INPUT_W)
+    kwargs = dict(input_names=["input"], output_names=["embedding"], opset_version=17)
+    model = model.cpu().eval()
+    try:
+        torch.onnx.export(model, dummy, str(path), dynamo=False, **kwargs)
+    except TypeError:                      # older PyTorch without the dynamo argument
+        torch.onnx.export(model, dummy, str(path), **kwargs)
+
+
+def make_session(onnx_path, allow_cpu=False):
+    """ONNX Runtime session on TensorRT (16-bit) or CUDA. None when no GPU provider exists."""
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        return None
+    available = ort.get_available_providers()
+    providers = []
+    if "TensorrtExecutionProvider" in available:
+        cache = onnx_path.parent / "trt_cache"
+        cache.mkdir(exist_ok=True)
+        providers.append(("TensorrtExecutionProvider", {
+            "trt_fp16_enable": True, "trt_engine_cache_enable": True, "trt_engine_cache_path": str(cache)}))
+    if "CUDAExecutionProvider" in available:
+        providers.append("CUDAExecutionProvider")
+    if not providers and not allow_cpu:
+        return None
+    providers.append("CPUExecutionProvider")
+    options = ort.SessionOptions()
+    options.log_severity_level = 3
+    return ort.InferenceSession(str(onnx_path), sess_options=options, providers=providers)
+
+
 class ReID:
-    def __init__(self, device=None, weights="osnet_x0_25_msmt17.pt"):
+    def __init__(self, device=None, weights="osnet_x0_25_msmt17.pt", backend="auto"):
+        """backend: "auto" (accelerated on an NVIDIA GPU, else PyTorch), "torch", or "onnx"."""
         if device is None:
             device = ("mps" if torch.backends.mps.is_available()
                       else "cuda" if torch.cuda.is_available() else "cpu")
@@ -92,10 +135,41 @@ class ReID:
         variant = weights.rsplit("_msmt17", 1)[0].rsplit("_market1501", 1)[0]
         self.name = variant
         self.model = CONSTRUCTORS[variant](num_classes=1, pretrained=False)
-        load_state_dict(self.model, ensure_weights(weights))
-        self.model.eval().to(self.device)
+        weights_path = ensure_weights(weights)
+        load_state_dict(self.model, weights_path)
+        self.model.eval()
         self.dim = 512
         self.last_ms = 0.0
+        self.session = None
+        self.backend = "PyTorch"
+
+        if backend == "onnx" or (backend == "auto" and self.device.type == "cuda"):
+            onnx_path = weights_path.with_suffix(".onnx")
+            try:
+                if not onnx_path.exists():
+                    export_onnx(self.model, onnx_path)
+                self.session = make_session(onnx_path, allow_cpu=(backend == "onnx"))
+            except Exception as exc:       # fall back to PyTorch and say why
+                print(f"re-ID: accelerated backend unavailable ({type(exc).__name__}: {exc}); using PyTorch")
+                self.session = None
+        if self.session is not None:
+            backend_name = self.session.get_providers()[0].replace("ExecutionProvider", "")
+            if backend_name == "Tensorrt":
+                print("re-ID: preparing the TensorRT engine (a few minutes the first time, seconds afterwards)",
+                      flush=True)
+            try:
+                x = np.zeros((1, 3, INPUT_H, INPUT_W), np.float32)
+                for _ in range(3):
+                    self.session.run(None, {"input": x})
+            except Exception as exc:       # engine build or first run failed: fall back to PyTorch
+                print(f"re-ID: accelerated backend failed on first run ({type(exc).__name__}: {exc}); using PyTorch")
+                self.session = None
+            else:
+                self.backend = backend_name
+                self.model = None          # the PyTorch copy is no longer needed
+                return
+
+        self.model.to(self.device)
         with torch.no_grad():  # warm up: the first call on MPS compiles kernels
             for _ in range(3):
                 self.model(torch.zeros(2, 3, INPUT_H, INPUT_W, device=self.device))
@@ -130,11 +204,17 @@ class ReID:
             self.last_ms = 0.0
             return out
         t0 = time.perf_counter()
-        x = torch.from_numpy(np.stack(crops)).to(self.device)
-        f = self.model(x)
-        f = torch.nn.functional.normalize(f, dim=1).cpu().numpy()
-        if self.device.type == "mps":
-            torch.mps.synchronize()
+        if self.session is not None:       # fixed one-crop input: one run per crop
+            f = np.concatenate([
+                self.session.run(None, {"input": np.ascontiguousarray(c[None], dtype=np.float32)})[0]
+                for c in crops])
+            f = f / (np.linalg.norm(f, axis=1, keepdims=True) + 1e-12)
+        else:
+            x = torch.from_numpy(np.stack(crops)).to(self.device)
+            f = self.model(x)
+            f = torch.nn.functional.normalize(f, dim=1).cpu().numpy()
+            if self.device.type == "mps":
+                torch.mps.synchronize()
         self.last_ms = (time.perf_counter() - t0) * 1000
         out[idx] = f
         return out
@@ -290,10 +370,39 @@ def _bench(camera, weights):
             print(f"ranking with 10-frame averaging: correct in {np.mean(avg > 0) * 100:.1f}% of windows")
 
 
+def _selftest(weights):
+    """Compare the PyTorch model with the accelerated backend on this machine: agreement and speed."""
+    rng = np.random.default_rng(0)
+    frame = cv2.GaussianBlur(rng.integers(0, 255, (480, 640, 3), dtype=np.uint8), (0, 0), 6)
+    frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX)
+    boxes = [[x, 40, x + 110, 400] for x in range(10, 520, 32)]
+    results = {}
+    for backend in ("torch", "auto"):
+        reid = ReID(weights=weights, backend=backend)
+        reid.embed_many(frame, boxes[:1])
+        times = []
+        for _ in range(30):
+            feats = reid.embed_many(frame, boxes[:1])
+            times.append(reid.last_ms)
+        results[backend] = (reid.backend, reid.embed_many(frame, boxes), float(np.median(times)))
+        print(f"{backend:5s} backend {reid.backend:9s} on {reid.device}: {results[backend][2]:6.1f} ms per crop")
+    a, b = results["torch"][1], results["auto"][1]
+    agree = (a * b).sum(axis=1)
+    print(f"agreement between the two on {len(boxes)} crops: lowest cosine {agree.min():.4f}, mean {agree.mean():.4f} "
+          f"(1.0 is identical; 0.99 or higher is fine)")
+    if results["auto"][0] == "PyTorch":
+        print("no accelerated backend on this machine; both runs used PyTorch")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--camera", type=int, default=0)
     ap.add_argument("--model", default="osnet_x0_25_msmt17.pt",
                     help="one of: " + ", ".join(MODEL_ZOO))
+    ap.add_argument("--selftest", action="store_true",
+                    help="compare the PyTorch and accelerated backends, then exit")
     a = ap.parse_args()
-    _bench(a.camera, a.model)
+    if a.selftest:
+        _selftest(a.model)
+    else:
+        _bench(a.camera, a.model)
