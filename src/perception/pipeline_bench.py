@@ -113,7 +113,7 @@ def main():
     ok, frame = cap.read()
     if not ok:
         raise SystemExit("camera opened but returned no frame")
-    print(f"detector {pathlib.Path(weights).name}, re-ID {reid.name} on {reid.device}, "
+    print(f"detector {pathlib.Path(weights).name}, re-ID {reid.name} ({reid.backend}) on {reid.device}, "
           f"frame {frame.shape[1]}x{frame.shape[0]}, running {args.seconds:.0f} s", flush=True)
     show_temperature("at start")
     OUT.mkdir(parents=True, exist_ok=True)

@@ -14,12 +14,14 @@ Library use:
     sim = ReID.cosine(vec_a, vec_b)                    # -1..1, higher = more alike
 
 Backends:
-    On an NVIDIA GPU (the Jetson) the model runs through ONNX Runtime, on TensorRT
-    with 16-bit precision when available and otherwise on CUDA. The ONNX file is
-    written next to the weights on first use and the TensorRT engine is cached
-    there, so the first start takes a few minutes and later starts take seconds.
+    On an NVIDIA GPU (the Jetson) the model runs as a TensorRT engine with 16-bit
+    precision, built with the TensorRT library that ships with JetPack. The ONNX
+    file and the engine are written next to the weights on first use, so the first
+    start takes a few minutes and later starts take seconds. If the engine cannot
+    be built or run, the model falls back to PyTorch and says why.
     Elsewhere (the Mac) it runs in PyTorch. ReID(backend="torch") forces PyTorch.
-    python src/perception/reid.py --selftest   compares the two backends on this machine
+    python src/perception/reid.py --selftest          compares the two on this machine
+    python src/perception/reid.py --selftest --fp32   the same with a 32-bit engine
 
 Bench (webcam, uses the tracker for boxes):
     python src/perception/reid.py --camera 0
@@ -125,9 +127,64 @@ def make_session(onnx_path, allow_cpu=False):
     return ort.InferenceSession(str(onnx_path), sess_options=options, providers=providers)
 
 
+def build_engine(onnx_path, engine_path, fp16=True):
+    """Build a TensorRT engine from the ONNX file with the TensorRT library installed on this machine."""
+    import tensorrt as trt
+    logger = trt.Logger(trt.Logger.WARNING)
+    builder = trt.Builder(logger)
+    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    parser = trt.OnnxParser(network, logger)
+    if not parser.parse_from_file(str(onnx_path)):
+        errors = "; ".join(str(parser.get_error(i)) for i in range(parser.num_errors))
+        raise RuntimeError(f"TensorRT could not read {onnx_path.name}: {errors}")
+    config = builder.create_builder_config()
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)
+    if fp16:
+        config.set_flag(trt.BuilderFlag.FP16)
+    serialized = builder.build_serialized_network(network, config)
+    if serialized is None:
+        raise RuntimeError("TensorRT engine build failed")
+    with open(engine_path, "wb") as f:
+        f.write(serialized)
+
+
+class TrtRunner:
+    """Runs a one-crop TensorRT engine. Input and output live in PyTorch GPU tensors."""
+
+    def __init__(self, engine_path):
+        import tensorrt as trt
+        self.logger = trt.Logger(trt.Logger.WARNING)
+        self.runtime = trt.Runtime(self.logger)
+        with open(engine_path, "rb") as f:
+            self.engine = self.runtime.deserialize_cuda_engine(f.read())
+        if self.engine is None:
+            raise RuntimeError(f"TensorRT could not load {engine_path}")
+        self.context = self.engine.create_execution_context()
+        self.inputs, self.outputs, self.addresses = [], [], []
+        for i in range(self.engine.num_io_tensors):
+            name = self.engine.get_tensor_name(i)
+            shape = tuple(int(d) for d in self.engine.get_tensor_shape(name))
+            half = self.engine.get_tensor_dtype(name) == trt.DataType.HALF
+            tensor = torch.zeros(shape, dtype=torch.float16 if half else torch.float32, device="cuda")
+            if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+                self.inputs.append(tensor)
+            else:
+                self.outputs.append(tensor)
+            self.addresses.append(int(tensor.data_ptr()))
+        if len(self.inputs) != 1 or len(self.outputs) != 1:
+            raise RuntimeError("expected an engine with one input and one output")
+
+    def __call__(self, crop):
+        """crop: float32 array (1, 3, H, W). Returns float32 array (1, 512)."""
+        self.inputs[0].copy_(torch.from_numpy(crop))
+        if not self.context.execute_v2(self.addresses):
+            raise RuntimeError("TensorRT inference failed")
+        return self.outputs[0].float().cpu().numpy()
+
+
 class ReID:
-    def __init__(self, device=None, weights="osnet_x0_25_msmt17.pt", backend="auto"):
-        """backend: "auto" (accelerated on an NVIDIA GPU, else PyTorch), "torch", or "onnx"."""
+    def __init__(self, device=None, weights="osnet_x0_25_msmt17.pt", backend="auto", fp16=True):
+        """backend: "auto" (TensorRT on an NVIDIA GPU, else PyTorch), "torch", or "onnx" (ONNX Runtime)."""
         if device is None:
             device = ("mps" if torch.backends.mps.is_available()
                       else "cuda" if torch.cuda.is_available() else "cpu")
@@ -140,34 +197,39 @@ class ReID:
         self.model.eval()
         self.dim = 512
         self.last_ms = 0.0
-        self.session = None
+        self.session = None                # callable: (1, 3, H, W) float32 array -> (1, 512) array
         self.backend = "PyTorch"
+        onnx_path = weights_path.with_suffix(".onnx")
+        x = np.zeros((1, 3, INPUT_H, INPUT_W), np.float32)
 
-        if backend == "onnx" or (backend == "auto" and self.device.type == "cuda"):
-            onnx_path = weights_path.with_suffix(".onnx")
+        if backend == "auto" and self.device.type == "cuda":
+            precision = "fp16" if fp16 else "fp32"
+            engine_path = weights_path.with_name(f"{weights_path.stem}_{precision}.engine")
             try:
                 if not onnx_path.exists():
                     export_onnx(self.model, onnx_path)
-                self.session = make_session(onnx_path, allow_cpu=(backend == "onnx"))
-            except Exception as exc:       # fall back to PyTorch and say why
-                print(f"re-ID: accelerated backend unavailable ({type(exc).__name__}: {exc}); using PyTorch")
-                self.session = None
-        if self.session is not None:
-            backend_name = self.session.get_providers()[0].replace("ExecutionProvider", "")
-            if backend_name == "Tensorrt":
-                print("re-ID: preparing the TensorRT engine (a few minutes the first time, seconds afterwards)",
-                      flush=True)
-            try:
-                x = np.zeros((1, 3, INPUT_H, INPUT_W), np.float32)
+                if not engine_path.exists():
+                    print(f"re-ID: building the TensorRT engine ({precision}); this takes a few minutes once",
+                          flush=True)
+                    build_engine(onnx_path, engine_path, fp16=fp16)
+                runner = TrtRunner(engine_path)
                 for _ in range(3):
-                    self.session.run(None, {"input": x})
-            except Exception as exc:       # engine build or first run failed: fall back to PyTorch
-                print(f"re-ID: accelerated backend failed on first run ({type(exc).__name__}: {exc}); using PyTorch")
+                    runner(x)
+                self.session, self.backend = runner, f"TensorRT {precision}"
+            except Exception as exc:       # fall back to PyTorch and say why
+                print(f"re-ID: TensorRT backend unavailable ({type(exc).__name__}: {exc}); using PyTorch")
                 self.session = None
-            else:
-                self.backend = backend_name
-                self.model = None          # the PyTorch copy is no longer needed
-                return
+        elif backend == "onnx":
+            if not onnx_path.exists():
+                export_onnx(self.model, onnx_path)
+            ort_session = make_session(onnx_path, allow_cpu=True)
+            if ort_session is None:
+                raise SystemExit("onnxruntime is not installed")
+            self.session = lambda crop: ort_session.run(None, {"input": crop})[0]
+            self.backend = "ONNX Runtime " + ort_session.get_providers()[0].replace("ExecutionProvider", "")
+        if self.session is not None:
+            self.model = None              # the PyTorch copy is no longer needed
+            return
 
         self.model.to(self.device)
         with torch.no_grad():  # warm up: the first call on MPS compiles kernels
@@ -206,8 +268,7 @@ class ReID:
         t0 = time.perf_counter()
         if self.session is not None:       # fixed one-crop input: one run per crop
             f = np.concatenate([
-                self.session.run(None, {"input": np.ascontiguousarray(c[None], dtype=np.float32)})[0]
-                for c in crops])
+                self.session(np.ascontiguousarray(c[None], dtype=np.float32)) for c in crops])
             f = f / (np.linalg.norm(f, axis=1, keepdims=True) + 1e-12)
         else:
             x = torch.from_numpy(np.stack(crops)).to(self.device)
@@ -370,7 +431,7 @@ def _bench(camera, weights):
             print(f"ranking with 10-frame averaging: correct in {np.mean(avg > 0) * 100:.1f}% of windows")
 
 
-def _selftest(weights):
+def _selftest(weights, fp16=True):
     """Compare the PyTorch model with the accelerated backend on this machine: agreement and speed."""
     rng = np.random.default_rng(0)
     frame = cv2.GaussianBlur(rng.integers(0, 255, (480, 640, 3), dtype=np.uint8), (0, 0), 6)
@@ -378,14 +439,14 @@ def _selftest(weights):
     boxes = [[x, 40, x + 110, 400] for x in range(10, 520, 32)]
     results = {}
     for backend in ("torch", "auto"):
-        reid = ReID(weights=weights, backend=backend)
+        reid = ReID(weights=weights, backend=backend, fp16=fp16)
         reid.embed_many(frame, boxes[:1])
         times = []
         for _ in range(30):
             feats = reid.embed_many(frame, boxes[:1])
             times.append(reid.last_ms)
         results[backend] = (reid.backend, reid.embed_many(frame, boxes), float(np.median(times)))
-        print(f"{backend:5s} backend {reid.backend:9s} on {reid.device}: {results[backend][2]:6.1f} ms per crop")
+        print(f"{backend:5s} backend {reid.backend:13s} on {reid.device}: {results[backend][2]:6.1f} ms per crop")
     a, b = results["torch"][1], results["auto"][1]
     agree = (a * b).sum(axis=1)
     print(f"agreement between the two on {len(boxes)} crops: lowest cosine {agree.min():.4f}, mean {agree.mean():.4f} "
@@ -401,8 +462,9 @@ if __name__ == "__main__":
                     help="one of: " + ", ".join(MODEL_ZOO))
     ap.add_argument("--selftest", action="store_true",
                     help="compare the PyTorch and accelerated backends, then exit")
+    ap.add_argument("--fp32", action="store_true", help="with --selftest: use a 32-bit engine")
     a = ap.parse_args()
     if a.selftest:
-        _selftest(a.model)
+        _selftest(a.model, fp16=not a.fp32)
     else:
         _bench(a.camera, a.model)
