@@ -99,7 +99,7 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [ ] Bench check once the MTF-01 is mounted: the rangefinder returns a valid reading with the aircraft sitting on the ground, which the estimator needs before it reports a position: 0.5 h
 - [ ] Soldering practice on pads with 30 AWG wire, two sessions: 2 h
 - [x] Jetson: flash the JetPack 6.2.1 SD card image to the Samsung EVO 512 GB from the Mac with balenaEtcher and boot headless over USB-C: 0.5 h (done Nov 17; the factory firmware booted the image, no firmware update needed. JetPack 6.2 is kept in preference to 7.2 because the PyTorch and detector toolchain is proven on it)
-- [ ] Move the Jetson's system from the SD card to the NVMe drive: 1 h
+- [ ] Jetson setup script that rebuilds the detector and re-ID engines and reinstalls the Python packages after a re-flash: 0.5 h (the system stays on the SD card for Phase 1; a move to the NVMe drive is made only if logging speed or card reliability becomes a problem)
 - [x] First boot, Ubuntu setup, network, SSH: 1 h (done Nov 17: Jetson Linux 36.4.4, 7.4 GB memory, Wi-Fi and remote login working, MAXN SUPER power mode; package list refreshed, system upgrade held until PyTorch and the camera are verified)
 - [x] PyTorch from prebuilt wheels for the JetPack version; no source builds: 1 h (done Nov 18: torch 2.10.0 and torchvision 0.25.0 with GPU support, TensorRT 10.3.0, CUDA 12.6; YOLO11n ran one test image at 28 ms inference before any TensorRT export)
 - [x] USB camera stream verified at flight resolution and frame rate: 0.5 h (done Nov 18: 640 by 480 at 30 frames per second on the Jetson; camera plus TensorRT detector also 30 frames per second, limited by the camera's rate setting. Exposure is correct indoors. Orientation matters: the detector's confidence on the same person was 0.85 with the camera upright and 0.64 with it on its side, so the camera is mounted upright)
@@ -110,13 +110,13 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 **Stage 2, Airframe (Nov 5 to 11, sky on Nov 8 and 9), about 11 to 14 h**
 
 - [ ] Inspect props and arms, confirm the FC label reads TAKER H743 BT, cell-check the three RDQ 1300 mAh packs (charged 2026-11-11): 0.5 h
-- [ ] Bind the TBS Tango 2 Pro radio to the factory-fitted TBS Nano receiver (decision 43); build the radio model, map channels, arm switch: 1.5 h
+- [x] Bind the TBS Tango 2 Pro radio to the factory-fitted TBS Nano receiver (decision 43); build the radio model, map channels, arm switch; set self-leveling active in every switch position (decision 45): 1.5 h (done 2026-11-20; the receiver took a firmware update over the air on the second attempt; the radio sends channels in the order throttle, roll, pitch, yaw, so the Betaflight channel map is set to TAER1234; the arm switch is the left button)
 - [ ] Stock-firmware bench check with props off: stick directions, arm switch, motor spin directions, radio-loss failsafe cuts the motors: 1 h (Nov 17: settings backed up, ports read and motor positions and directions confirmed without the radio; stick directions, arm switch and failsafe wait for the radio. The stock failsafe is GPS Rescue, not a motor cut)
 - [ ] First flights on the stock firmware in self-leveling mode, in a sheltered spot or the barn: gentle takeoffs and landings, then a steady hover: 1 h
 - [ ] Manual practice on the stock firmware until takeoff, landing and hover are repeatable, at least two sessions of 15 to 20 minutes: 2 h
 - [ ] Back up the stock config, flash ArduPilot through the bootloader, only after the aircraft has flown as expected on the stock firmware: 1 h
 - [ ] Frame type, motor order and direction test in QGroundControl; the stock firmware remaps the motor outputs (2,3,0,1) and has the GPS on UART6, and both carry into the ArduPilot setup: 1 h
-- [ ] Calibrate accelerometer, radio, ESCs; no compass is fitted (decision 42): 1 h
+- [ ] Calibrate accelerometer, radio, ESCs; no compass is fitted (decision 42); the radio sends throttle, roll, pitch, yaw on channels 1 to 4, so set RCMAP_THROTTLE 1, RCMAP_ROLL 2, RCMAP_PITCH 3, RCMAP_YAW 4 before the radio calibration: 1 h
 - [ ] Modes on a switch (Stabilize, AltHold, Loiter, Guided), battery failsafe, radio-loss failsafe to Land, geofence: 1.5 h
 - [ ] Under ArduPilot: hover in Stabilize, then AltHold; Loiter follows once a heading route from decision 42 is proven; vibration log checked: 1.5 h
 - [x] Decide the Remote ID approach and record it in the decision log (decision 37, 2026-11-11)
