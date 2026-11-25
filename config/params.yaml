@@ -111,3 +111,11 @@ mavlink:
   command_rate_hz: 10               # Guided times out below about 3 Hz
   autopilot_params:
     WP_YAW_BEHAVIOR: 0              # never auto-yaw; the controller owns yaw
+    GUID_TIMEOUT: 0.5               # seconds the autopilot keeps flying the last Guided command; then it hovers (decision 47; default 3)
+    FS_GCS_ENABLE: 5                # land when the Jetson's heartbeat stops (decision 46)
+    FS_GCS_TIMEOUT: 3               # seconds without a heartbeat before that landing
+    LOIT_SPEED_MS: 2.0              # Loiter top speed, m/s; matches limits.max_speed_mps (decision 46)
+    PILOT_SPD_UP: 1.0               # pilot climb limit, m/s; matches limits.max_vertical_mps
+    PILOT_SPD_DN: 1.0               # pilot descent limit, m/s
+    # Names are those of ArduPilot 4.8.0-dev. The autopilot does not limit Guided velocity commands:
+    # in Guided the speed limits are enforced by the controller and the watchdog only (decision 47).
