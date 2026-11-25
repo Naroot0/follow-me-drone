@@ -102,6 +102,17 @@ reid:
   learn_check_every_frames: 5   # while locked, re-ID runs on the target at most this often, and only until the gallery is full
   learn_max_similarity: 0.95  # skip near-duplicate views so the gallery covers poses
 
+logging:                   # src/flightlog/recorder.py
+  jpeg_quality: 85         # compression of each saved camera frame, 1 to 100
+  queue_frames: 90         # pictures the writer may fall behind by (3 s) before pictures are dropped; data rows are never dropped
+  flush_s: 1.0             # files are flushed this often, so a crash loses at most this much
+  cull:                    # src/flightlog/archive.py, run on the Mac after a session
+    event_window_s: 1.0    # keep every crop this long before and after a lock, loss or re-lock
+    close_score: 0.10      # keep every crop whose similarity is within this of the re-lock threshold
+    interval_s: 1.0        # otherwise keep one crop per person this often
+    novelty_every_frames: 6    # between those, compare a crop to the last one kept this often
+    novelty_max_similarity: 0.95   # and keep it if it is less similar than this (a new view)
+
 mavlink:
   connection: udpin:0.0.0.0:14551   # SITL via MAVProxy second output; the Jetson will use a serial port
   target_component: 1

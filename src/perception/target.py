@@ -58,6 +58,8 @@ class TargetOutput:
     target_box: np.ndarray | None
     scores: dict = field(default_factory=dict)   # track_id -> similarity (LOST and LOCKED)
     events: list = field(default_factory=list)   # human-readable transitions this frame
+    feats: dict = field(default_factory=dict)    # track_id -> embedding, for every embedding computed this frame
+    learned: bool = False                        # an embedding was added to the gallery this frame
 
 
 class TargetSelector:
@@ -167,6 +169,7 @@ class TargetSelector:
                     if not np.isnan(f).any():
                         self.target_id = tid
                         self.gallery = [f]
+                        out.feats, out.learned = {tid: f}, True
                         self.last_learn = self.frame
                         self.state = LOCKED
                         out.events.append(f"t={t - self.t_start:5.1f}s ENROLLING -> LOCKED on track {tid} "
@@ -197,7 +200,9 @@ class TargetSelector:
                     if not np.isnan(f).any():
                         s = ReID.best_match(self.gallery, f)
                         out.scores = {self.target_id: s}
+                        views = len(self.gallery)
                         self._learn(f, s)
+                        out.feats, out.learned = {self.target_id: f}, len(self.gallery) > views
             else:
                 self.state = LOST
                 self.lost_since = t
@@ -214,6 +219,7 @@ class TargetSelector:
         for tid, f in zip(ids, feats):
             if not np.isnan(f).any():
                 scores[tid] = ReID.best_match(self.gallery, f)
+                out.feats[tid] = f
         out.scores = scores
 
         gone = t - self.lost_since

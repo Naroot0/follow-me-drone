@@ -86,7 +86,7 @@ Task breakdown by stage. Every task is two hours or less of hands-on time. Waiti
 - [x] Tracker added, stable IDs confirmed: 1 h
 - [x] Re-ID model installed, embeddings on crops, latency measured: 1.5 h (failure case: dependency install on the Jetson later, add 1 h)
 - [x] Enrollment logic, similarity threshold, lock and loss state machine: 1.5 h
-- [ ] Logging of detections, IDs, embeddings, timestamps: 1 h
+- [x] Logging of detections, IDs, embeddings, timestamps: 1 h (done 2026-11-25: src/flightlog/recorder.py writes every camera frame and every per-frame result on a background thread, 5 of 5 checks pass in recorder_test.py; src/flightlog/archive.py cuts and culls crops and re-encodes the video on the Mac; the cost on the Jetson is measured with pipeline_bench.py --record)
 - [ ] Walk-around test with the webcam, threshold tuning, false-lock count: 1.5 h
 - [x] Velocity command message to Guided mode, type mask and frame understood, tested in SITL: 1 h (failure case: wrong mask silently ignored, add 1 h)
 - [x] Proportional hold on distance and bearing against a fake target in SITL: 1.5 h
@@ -209,7 +209,7 @@ Perception and estimation are highlighted because they are the two modules that 
 | Estimation | Turns bounding-box size and position into range and bearing; coasts on the last estimate when the track is lost | Filtering method to be decided with the author before stage 1 estimation work begins; candidates are an exponential smoother and a Kalman filter (open decision) | Estimation is relative only: distance and angle to the person, never absolute position, so GPS loss changes nothing here |
 | Control | Converts range and bearing error into velocity commands that hold a set distance at a set station angle; the station angle and orbit are Phase 2; on an obstacle reading, hovers, sidesteps, and resumes | Proportional control with limits; add damping only if it oscillates | Rule-based by design; no learned policy; station distance and stop distance are parameters so faster modes can open them up |
 | Safety | Speed limits over the ground set in the controller, the watchdog and the autopilot (decision 46), altitude ceiling, obstacle sensors with a 1.5 m stop rule, hover on track loss beyond the timeout, land in place on prolonged loss, pilot override always armed, prop guards | Autopilot built-in failsafes plus one project watchdog process | GPS-free: position hold on optical flow plus rangefinder; prolonged loss means hover then land, not return-to-home |
-| Logging | Records every frame's detection, estimate, command, and event with timestamps | Comma-separated files per flight, plotted after each session | The logs are the training dataset and the report's evidence |
+| Logging | Records every camera frame and every frame's detection, estimate, command, and event with timestamps | One folder per flight: the frames as pictures, comma-separated files for the data, and the re-ID embeddings the pipeline computed; crops are cut and culled on the Mac after each session | The logs are the training dataset and the report's evidence |
 
 The autopilot owns stabilization and motor control. The companion computer sends velocity setpoints through MAVLink Guided mode and reads telemetry back. The companion computer never commands attitude or motors directly; this boundary is fixed for the life of the project.
 

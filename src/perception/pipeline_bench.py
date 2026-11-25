@@ -11,6 +11,7 @@ Usage:
     python src/perception/pipeline_bench.py                 # 90 s on camera 0
     python src/perception/pipeline_bench.py --seconds 120 --camera 0
     python src/perception/pipeline_bench.py --weights yolo11n.pt
+    python src/perception/pipeline_bench.py --record bench-1   # also write a flight log, to measure its cost
 
 Detector weights: --weights if given; otherwise a TensorRT engine named
 yolo11n.engine in the repository folder or the home folder if one exists;
@@ -33,6 +34,7 @@ import yaml
 from ultralytics import YOLO
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "flightlog"))
 from reid import ReID                                                   # noqa: E402
 from target import TargetSelector, LOCKED, LAND, FAILED                 # noqa: E402
 
@@ -96,6 +98,7 @@ def main():
     ap.add_argument("--camera", type=int, default=0)
     ap.add_argument("--seconds", type=float, default=90.0)
     ap.add_argument("--weights", help="detector weights or TensorRT engine (default: see module text)")
+    ap.add_argument("--record", metavar="LABEL", help="write a flight log to logs/flights/ with this label")
     args = ap.parse_args()
 
     with open(REPO / "config" / "params.yaml") as f:
@@ -127,6 +130,13 @@ def main():
         ok, frame = cap.read()
         track(frame)
 
+    rec = None
+    if args.record:
+        from recorder import FlightRecorder
+        rec = FlightRecorder(REPO / "logs" / "flights", args.record, params,
+                             meta={"detector": pathlib.Path(weights).name, "reid": f"{reid.name} ({reid.backend})"})
+        print(f"recording to {rec.folder}", flush=True)
+    t_record = []
     sel = TargetSelector(params, reid)
     print("stand still in view until LOCKED, step out, wait for LOST, step back in", flush=True)
     t_capture, t_track, t_select, t_reid, t_total = [], [], [], [], []
@@ -140,14 +150,18 @@ def main():
             break
         b = time.perf_counter()
         res = track(frame)
-        boxes, ids = [], []
+        boxes, ids, confs = [], [], []
         if res.boxes is not None and res.boxes.id is not None:
             boxes = res.boxes.xyxy.cpu().numpy()
             ids = res.boxes.id.int().tolist()
+            confs = res.boxes.conf.cpu().numpy().tolist()
         c = time.perf_counter()
         t = c - t0
         out = sel.update(frame, boxes, ids, t)
         d = time.perf_counter()
+        if rec is not None:
+            rec.frame(frame, t, boxes, ids, confs, target=out, loop_ms=(d - a) * 1000)
+            t_record.append((time.perf_counter() - d) * 1000)
 
         frames += 1
         people_max = max(people_max, len(ids))
@@ -195,6 +209,12 @@ def main():
           f"which would allow {1000 / work:.0f} frames per second")
     print(f"most people in view at once: {people_max}; events: {events_total}; "
           f"final state {sel.state}; gallery {len(sel.gallery)}; {saved} frames saved in {OUT}")
+    if rec is not None:
+        r = rec.close()
+        print(summary("flight recorder, main loop", t_record))
+        print(f"flight log: {r['megabytes']} MB for {r['seconds']} s = {r['megabytes_per_20_min']:.0f} MB per 20 minutes; "
+              f"writer thread {r['compress_ms_median']} ms per frame (95th percentile {r['compress_ms_95th']}); "
+              f"pictures dropped {r['pictures_dropped']}; most waiting {r['most_pictures_waiting']}; {r['folder']}")
     show_temperature("at end")
     print("DONE")
 

@@ -55,7 +55,7 @@ src/perception/    detector, tracker, re-ID, enrollment
 src/estimation/    bounding box to range and bearing
 src/control/       velocity commands, station hold, flight state machine
 src/safety/        watchdog: speed limits, command and link checks, pilot takeover
-src/flightlog/     per-flight CSV logs (named to avoid shadowing the standard-library logging module)
+src/flightlog/     flight recorder (frames, per-frame data, embeddings) and the after-session archive tool (named to avoid shadowing the standard-library logging module)
 sim/               ArduPilot SITL (software in the loop) setup and fake-target scripts
 scripts/           setup and flashing helpers
 logs/              flight logs (gitignored except an example)
