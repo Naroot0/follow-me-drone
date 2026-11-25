@@ -8,7 +8,8 @@
   5. crash       a copy of the folder taken mid-flight, with no closing step, still reads back
 
     python src/flightlog/recorder_test.py
-Leaves one example flight in logs/flights/ for trying the archive tool on.
+    python src/flightlog/recorder_test.py --keep     # leave the made-up flight in logs/flights/
+The made-up flight is removed afterwards unless --keep is given.
 """
 import pathlib
 import shutil
@@ -137,9 +138,10 @@ def record(root, params, frames, paced, label, snapshot_at=None, snapshot_to=Non
 def main():
     with open(REPO / "config" / "params.yaml") as f:
         params = yaml.safe_load(f)
-    root = REPO / "logs" / "flights"
-    root.mkdir(parents=True, exist_ok=True)
+    keep_example = "--keep" in sys.argv[1:]
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="recorder_test_"))
+    root = REPO / "logs" / "flights" if keep_example else tmp
+    root.mkdir(parents=True, exist_ok=True)
 
     n = 25 * FPS
     folder, s, call_ms, keep = record(root, params, n, True, "recorder-test", snapshot_at=12 * FPS,
@@ -191,7 +193,8 @@ def main():
           f"frames read back, the last one decodes, {len(crash.events)} events present")
 
     shutil.rmtree(tmp, ignore_errors=True)
-    print(f"\nexample flight left in {folder}")
+    if keep_example:
+        print(f"\nexample flight left in {folder}")
     print("RESULT:", "PASS" if all(results) else "FAIL", f"({sum(results)} of {len(results)})")
     sys.exit(0 if all(results) else 1)
 
