@@ -47,14 +47,26 @@ orbit:                     # Phase 2 (decision 36); unused in v1.0
   person_still_speed_mps: 0.3
 
 limits:
-  max_speed_mps: 2.0       # walking pace plus margin
+  max_speed_mps: 2.0       # 4.5 mph over the ground, any horizontal direction; a 4 mph walk is 1.8 m/s (decision 46)
   max_altitude_agl_m: 10
-  geofence_radius_m: 50
+  geofence_radius_m: 0     # 0 = off for follow flights (decision 46); set a radius only for tests flown in one spot
   command_rate_hz: 10
   max_yaw_rate_dps: 90
   max_reverse_mps: 0.5     # reverse speed limit; reverse is for brake recovery only (decision 33)
   max_reverse_distance_m: 1.0   # most the drone backs up in one brake recovery (decision 33)
-  watchdog_timeout_s: 0.5
+  max_vertical_mps: 1.0    # climb or descent the watchdog lets through; the controller commands zero in this version
+  watchdog_timeout_s: 0.5  # no fresh command for this long: the watchdog sends a hover command
+
+watchdog:                  # src/safety/watchdog.py; values below are first settings, not yet flown
+  land_after_s: 2.0        # no fresh command, or no position, for this long: land in place (decision 44)
+  heartbeat_timeout_s: 3.0 # the autopilot sends a heartbeat every second; three missed in a row: land
+  stick_deadband_us: 100   # a stick moved this far from where it was when the autonomy engaged stops the autonomy (10 percent of full stick travel)
+  autonomy_mode: GUIDED    # any other autopilot mode means the pilot or a failsafe has control
+  handover_mode: LOITER    # mode requested after a stick movement, so the sticks fly the aircraft; holds position with the sticks centred
+  handover_speed_mps: 0.3  # the aircraft counts as stopped below this speed
+  handover_max_wait_s: 2.0 # hand over after this long even if it has not slowed below handover_speed_mps
+  throttle_mid_us: 1500    # middle of the throttle stick
+  throttle_mid_band_us: 100  # hand over only with the throttle stick this close to the middle (a low stick means descend in the pilot modes)
 
 control:
   # Structure agreed 2026-11-10 (decision 33). Gain values come from an offline simulation and are untuned until the SITL run.
